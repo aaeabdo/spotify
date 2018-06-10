@@ -150,3 +150,46 @@ func (c *Client) GetArtistAlbumsOpt(artistID ID, options *Options, t *AlbumType)
 
 	return &p, nil
 }
+
+// GetArtistAlbumsOpt is just like GetArtistAlbums, but it accepts optional
+// parameters used to filter and sort the result.
+//
+// The AlbumType argument can be used to find a particular type of album.  Search
+// for multiple types by OR-ing the types together.
+func (c *Client) GetArtistFullAlbumsOpt(artistID ID, options *Options, t *AlbumType) (*FullAlbumPage, error) {
+	spotifyURL := fmt.Sprintf("%sartists/%s/albums", c.baseURL, artistID)
+	// add optional query string if options were specified
+	values := url.Values{}
+	if t != nil {
+		values.Set("album_type", t.encode())
+	}
+	if options != nil {
+		if options.Country != nil {
+			values.Set("market", *options.Country)
+		} else {
+			// if the market is not specified, Spotify will likely return a lot
+			// of duplicates (one for each market in which the album is available)
+			// - prevent this behavior by falling back to the US by default
+			// TODO: would this ever be the desired behavior?
+			values.Set("market", CountryUSA)
+		}
+		if options.Limit != nil {
+			values.Set("limit", strconv.Itoa(*options.Limit))
+		}
+		if options.Offset != nil {
+			values.Set("offset", strconv.Itoa(*options.Offset))
+		}
+	}
+	if query := values.Encode(); query != "" {
+		spotifyURL += "?" + query
+	}
+
+	var p FullAlbumPage
+
+	err := c.get(spotifyURL, &p)
+	if err != nil {
+		return nil, err
+	}
+
+	return &p, nil
+}
